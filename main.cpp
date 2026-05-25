@@ -13,6 +13,9 @@ unsigned int createShaderProgram();
 
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
+float baseAngle = 0.0f;
+float armAngle = 0.0f;
+float forearmAngle = 0.0f;
 
 const char* vertexShaderSource = R"(
 #version 330 core
@@ -186,7 +189,10 @@ int main()
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         glUseProgram(shaderProgram);
-
+        int width;
+        int height;
+        glfwGetFramebufferSize (window, &width, &height);
+        float aspect = (float)width/float(height);
         glm::mat4 view = glm::lookAt(
             glm::vec3(0.0f, 2.0f, 5.0f),
             glm::vec3(0.0f, 0.0f, 0.0f),
@@ -195,7 +201,7 @@ int main()
 
         glm::mat4 projection = glm::perspective(
             glm::radians(45.0f),
-            (float)SCR_WIDTH / (float)SCR_HEIGHT,
+            aspect,
             0.1f,
             100.0f
         );
@@ -214,18 +220,35 @@ int main()
             glm::value_ptr(projection)
         );
 
-        glm::mat4 model = glm::mat4(1.0f);
+        // ====================================================
+        // BASE DO BRAÇO ROBÓTICO
+        // ====================================================
 
-        model = glm::rotate(
-            model,
-            glm::radians(25.0f),
+        glm::mat4 base = glm::mat4(1.0f);
+
+        // posiciona a base no centro da cena
+        base = glm::translate(
+            base,
+            glm::vec3(0.0f, 0.0f, 0.0f)
+        );
+
+        // dá uma leve rotação apenas para visualizar melhor
+        base = glm::rotate(
+            base,
+            baseAngle,
             glm::vec3(1.0f, 0.0f, 0.0f)
         );
 
-        model = glm::rotate(
-            model,
-            glm::radians(-35.0f),
+        base = glm::rotate(
+            base,
+            float(glfwGetTime()),
             glm::vec3(0.0f, 1.0f, 0.0f)
+        );
+
+        // transforma o cubo em uma base achatada
+        base = glm::scale(
+            base,
+            glm::vec3(2.0f, 0.3f, 2.0f)
         );
 
         glBindVertexArray(VAO);
@@ -234,7 +257,96 @@ int main()
             modelLoc,
             1,
             GL_FALSE,
-            glm::value_ptr(model)
+            glm::value_ptr(base)
+        );
+
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+
+
+        // ====================================================
+        // BRAÇO
+        // ====================================================
+
+        // o braço começa herdando a transformação da base
+        glm::mat4 braco = base;
+
+        // desloca o braço para cima da base
+        braco = glm::translate(
+            braco,
+            glm::vec3(0.0f, 0.15f, 0.0f)
+        );
+
+        // rotação local do braço
+        braco = glm::rotate(
+            braco,
+            armAngle,
+            glm::vec3(0.0f, 0.0f, 1.0f)
+        );
+
+        // matriz usada apenas para desenhar a geometria do braço
+        glm::mat4 bracoDraw = braco;
+
+        // desloca a geometria para que o pivô fique na base do braço
+        bracoDraw = glm::translate(
+            bracoDraw,
+            glm::vec3(0.0f, 0.75f, 0.0f)
+        );
+
+        // transforma o cubo em uma haste vertical
+        bracoDraw = glm::scale(
+            bracoDraw,
+            glm::vec3(0.3f, 1.5f, 0.3f)
+        );
+
+        glUniformMatrix4fv(
+            modelLoc,
+            1,
+            GL_FALSE,
+            glm::value_ptr(bracoDraw)
+        );
+
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+
+        // ====================================================
+        // ANTEBRAÇO
+        // ====================================================
+
+        // o antebraço começa herdando a transformação do braço
+        glm::mat4 antebraco = braco;
+
+        // desloca até a ponta do braço
+        antebraco = glm::translate(
+            antebraco,
+            glm::vec3(0.0f, 1.5f, 0.0f)
+        );
+
+        // rotação local do antebraço
+        antebraco = glm::rotate(
+            antebraco,
+            forearmAngle,
+            glm::vec3(0.0f, 0.0f, 1.0f)
+        );
+
+        // matriz usada apenas para desenhar a geometria do antebraço
+        glm::mat4 antebracoDraw = antebraco;
+
+        // desloca a geometria para que o pivô fique na base do antebraço
+        antebracoDraw = glm::translate(
+            antebracoDraw,
+            glm::vec3(0.0f, 0.6f, 0.0f)
+        );
+
+        // transforma o cubo em uma haste menor
+        antebracoDraw = glm::scale(
+            antebracoDraw,
+            glm::vec3(0.25f, 1.2f, 0.25f)
+        );
+
+        glUniformMatrix4fv(
+            modelLoc,
+            1,
+            GL_FALSE,
+            glm::value_ptr(antebracoDraw)
         );
 
         glDrawArrays(GL_TRIANGLES, 0, 36);
@@ -295,6 +407,31 @@ void processInput(GLFWwindow* window)
     {
         glfwSetWindowShouldClose(window, true);
     }
+    if ( glfwGetKey ( window , GLFW_KEY_A ) == GLFW_PRESS )
+    {
+        baseAngle += 0.01f ;
+    }
+    if ( glfwGetKey ( window , GLFW_KEY_D ) == GLFW_PRESS )
+    {
+        baseAngle -= 0.01f ;
+    }
+    if ( glfwGetKey ( window , GLFW_KEY_W ) == GLFW_PRESS )
+    {
+        armAngle += 0.01f ;
+    }
+    if ( glfwGetKey ( window , GLFW_KEY_S ) == GLFW_PRESS )
+    {
+        armAngle -= 0.01f ;
+    }
+    if ( glfwGetKey ( window , GLFW_KEY_Q ) == GLFW_PRESS )
+    {
+        forearmAngle += 0.01f ;
+    }
+    if ( glfwGetKey ( window , GLFW_KEY_E ) == GLFW_PRESS )
+    {
+        forearmAngle -= 0.01f ;
+    }
+
 }
 
 void framebuffer_size_callback(
